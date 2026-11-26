@@ -306,6 +306,16 @@
     var banner = $('setupBanner');
     if (banner) banner.hidden = (state.conn === 'ok');
 
+    var privacy = $('privacyBanner');
+    if (privacy) {
+      var isPublic = state.conn === 'ok' && state.repoInfo && state.repoInfo.private === false;
+      privacy.hidden = !isPublic;
+      if (isPublic) {
+        var pl = $('privacyLink');
+        if (pl) pl.href = repoUrl() + '/settings';
+      }
+    }
+
     var footer = $('footerConn');
     if (footer) {
       footer.textContent = state.conn === 'ok'
@@ -497,6 +507,11 @@
         toast('GitHub 연결을 확인하지 못했습니다. 설정을 확인해 주세요.', 'error');
         return;
       }
+    }
+    if (state.repoInfo && state.repoInfo.private === false) {
+      var goOn = window.confirm('연결된 저장소(' + state.cfg.owner + '/' + state.cfg.repo + ')가 공개 상태입니다.\n' +
+        '지금 보내는 프롬프트와 파일을 누구나 볼 수 있습니다.\n\n그래도 보낼까요?');
+      if (!goOn) return;
     }
 
     var btn = $('btnSend');
