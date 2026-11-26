@@ -257,7 +257,41 @@
     }
   }
 
-  async function ensureFolders() {
+  var WORKSPACE_README = [
+    '# pickle-workspace (비공개)',
+    '',
+    'Pickle PC 화면(<https://sogic8-web.github.io/pickle-pc/>)이 쓰는 **비공개 작업 공간**입니다.',
+    '프롬프트와 첨부 파일, 결과물이 모두 여기에만 저장됩니다.',
+    '',
+    '## 구조',
+    '',
+    '```',
+    'inbox/                          PC 화면에서 보낸 요청',
+    '  {YYYYMMDD_HHMMSS}_{제목}.md      요청 본문 + 첨부 링크',
+    '  files/                          첨부 파일 원본',
+    'outbox/                         피클이 올려 두는 결과물 (PC 화면에서 바로 내려받기)',
+    '```',
+    '',
+    '- 모든 시각은 한국시간(KST) 기준입니다.',
+    '- 이 저장소는 **비공개**여야 합니다. 공개로 바뀌면 PC 화면이 경고를 띄웁니다.',
+    ''
+  ].join('\n');
+
+  /** 처음 연결할 때 inbox/ · outbox/ 폴더와 README를 준비한다 */
+  async function ensureWorkspace() {
+    var rootItems = null;
+    try {
+      var rootRes = await api(repoBase() + '/contents/');
+      rootItems = await rootRes.json();
+    } catch (e) {
+      if (e.status === 404) rootItems = [];
+      else return;
+    }
+    if (Array.isArray(rootItems) && rootItems.length === 0) {
+      try {
+        await putNewFile('README.md', new TextEncoder().encode(WORKSPACE_README), 'docs: workspace README (Pickle PC)');
+      } catch (e3) { /* 권한이 없으면 조용히 넘어감 */ }
+    }
     var dirs = ['inbox', 'outbox', 'inbox/files'];
     for (var i = 0; i < dirs.length; i++) {
       var dir = dirs[i];
@@ -385,7 +419,7 @@
           (push === false ? ' · 경고: 쓰기 권한이 없습니다(Contents: Read and write 확인).' : '');
       }
       if (!silent) toast('GitHub 연결 확인 완료', 'ok');
-      ensureFolders();
+      ensureWorkspace();
       return true;
     } catch (e) {
       state.conn = 'error';
