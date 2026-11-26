@@ -36,6 +36,14 @@
 
   <!-- ============ 보내기 ============ -->
   <section class="panel" id="tab-compose" role="tabpanel" aria-labelledby="tabbtn-compose">
+    <div class="setup-banner banner-danger" id="privacyBanner" hidden>
+      <div class="setup-banner-text">
+        <strong>⚠️ 연결된 저장소가 공개(Public) 상태입니다.</strong>
+        <span>지금 보내는 프롬프트와 파일은 누구나 볼 수 있습니다. GitHub 저장소 설정에서 비공개로 바꿔 주세요.</span>
+      </div>
+      <a class="btn btn-primary btn-sm" id="privacyLink" href="https://github.com/sogic8-web/pickle-workspace/settings" target="_blank" rel="noopener">저장소 설정 열기</a>
+    </div>
+
     <div class="setup-banner" id="setupBanner" hidden>
       <div class="setup-banner-text">
         <strong>먼저 GitHub 토큰을 연결해 주세요.</strong>
