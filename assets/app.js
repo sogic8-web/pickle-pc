@@ -405,7 +405,23 @@
     }
 
     var banner = $('setupBanner');
-    if (banner) banner.hidden = (state.conn === 'ok');
+    if (banner) {
+      banner.hidden = (state.conn === 'ok');
+      var bTitle = $('setupTitle');
+      var bText = $('setupText');
+      var bBtn = $('setupBtn');
+      if (state.conn === 'error') {
+        banner.className = 'alert alert-danger';
+        if (bTitle) bTitle.textContent = 'GitHub에 연결하지 못했습니다.';
+        if (bText) bText.textContent = state.connMessage || '설정에서 토큰과 저장소 이름을 확인해 주세요.';
+        if (bBtn) bBtn.textContent = '설정 열기';
+      } else {
+        banner.className = 'alert alert-info';
+        if (bTitle) bTitle.textContent = '먼저 GitHub 토큰을 연결해 주세요.';
+        if (bText) bText.textContent = '토큰은 이 브라우저(localStorage)에만 저장되고, 어디로도 전송되지 않습니다.';
+        if (bBtn) bBtn.textContent = '토큰 연결하기';
+      }
+    }
 
     var isPublic = state.conn === 'ok' && state.repoInfo && state.repoInfo.private === false;
     var privacy = $('privacyBanner');
