@@ -17,6 +17,60 @@
   var TEXT_EXT = ['md', 'markdown', 'txt', 'csv', 'tsv', 'json', 'log', 'yaml', 'yml', 'xml',
     'html', 'htm', 'css', 'js', 'ts', 'py', 'sh', 'ini', 'conf', 'sql'];
 
+  /* 파일 타입 배지: [라벨, 색상 클래스] */
+  var TYPE_MAP = {
+    pdf: ['PDF', 't-pdf'],
+    hwp: ['HWP', 't-hwp'], hwpx: ['HWPX', 't-hwp'],
+    doc: ['DOC', 't-doc'], docx: ['DOCX', 't-doc'], rtf: ['RTF', 't-doc'], odt: ['ODT', 't-doc'],
+    xls: ['XLS', 't-xls'], xlsx: ['XLSX', 't-xls'], csv: ['CSV', 't-xls'], tsv: ['TSV', 't-xls'],
+    ppt: ['PPT', 't-ppt'], pptx: ['PPT', 't-ppt'],
+    md: ['MD', 't-md'], markdown: ['MD', 't-md'],
+    zip: ['ZIP', 't-zip'], '7z': ['7Z', 't-zip'], tar: ['TAR', 't-zip'], gz: ['GZ', 't-zip'],
+    json: ['JSON', 't-code'], xml: ['XML', 't-code'], yaml: ['YML', 't-code'], yml: ['YML', 't-code'],
+    txt: ['TXT', 't-txt']
+  };
+
+  var TEMPLATES = {
+    summary: {
+      title: '문서 요약 정리',
+      body: [
+        '첨부한 문서를 다음 형식으로 정리해 줘.',
+        '',
+        '1. 핵심 요약 — 5줄 (각 줄 40자 이내)',
+        '2. 주요 내용 표 — 항목 | 내용 | 비고',
+        '3. 결정이 필요한 사항 / 다음 할 일',
+        '',
+        '표와 목록은 마크다운으로 정리하고, 마지막에 같은 내용을 PDF 파일로 outbox/ 에도 올려 줘.'
+      ].join('\n')
+    },
+    draft: {
+      title: '메일 초안 작성',
+      body: [
+        '아래 조건으로 상급자 보고용 메일 초안을 써 줘.',
+        '',
+        '- 목적: ',
+        '- 수신: ',
+        '- 반드시 포함할 내용: ',
+        '- 분량: 400자 내외, 정중하고 간결하게',
+        '',
+        '마지막에 제목 후보 3개를 덧붙여 줘.'
+      ].join('\n')
+    },
+    analyze: {
+      title: '자료 분석',
+      body: [
+        '첨부한 자료를 분석해 줘.',
+        '',
+        '- 데이터 기준(기간·단위)을 먼저 확인해서 밝혀 줘',
+        '- 핵심 수치와 변화율을 표로 정리',
+        '- 눈에 띄는 이상치와 원인 추정',
+        '- 결론 3줄',
+        '',
+        '원본 숫자는 그대로 인용하고, 표는 마크다운으로 작성해 줘.'
+      ].join('\n')
+    }
+  };
+
   var state = {
     token: '',
     cfg: Object.assign({}, DEFAULT_CFG),
@@ -26,12 +80,12 @@
     files: [],             // 첨부 대기 파일
     lastSent: null,        // { path, copyText }
     loaded: { outbox: false, inbox: false, inboxFiles: false },
+    counts: { outbox: null, inbox: null },
     preview: null          // { path, name, sha }
   };
 
-  // ---------------------------------------------------------------- utils
+  /* ---------------------------------------------------------------- utils */
   function $(id) { return document.getElementById(id); }
-
   function on(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
 
   function esc(s) {
@@ -85,16 +139,20 @@
     return i > -1 ? s.slice(i + 1).toLowerCase() : '';
   }
 
-  function fileIcon(name) {
+  function fileType(name) {
     var e = ext(name);
-    if (IMAGE_EXT.indexOf(e) > -1) return '🖼️';
-    if (e === 'pdf') return '📕';
-    if (e === 'md' || e === 'markdown') return '📝';
-    if (e === 'docx' || e === 'doc' || e === 'hwp' || e === 'hwpx') return '📄';
-    if (e === 'xlsx' || e === 'xls' || e === 'csv') return '📊';
-    if (e === 'zip' || e === '7z' || e === 'tar' || e === 'gz') return '🗜️';
-    if (e === 'json' || e === 'xml' || e === 'yaml' || e === 'yml') return '🧾';
-    return '📎';
+    if (IMAGE_EXT.indexOf(e) > -1) return { label: e === 'svg' ? 'SVG' : 'IMG', cls: 't-img' };
+    if (TYPE_MAP[e]) return { label: TYPE_MAP[e][0], cls: TYPE_MAP[e][1] };
+    if (!e) return { label: 'FILE', cls: 't-file' };
+    return { label: e.slice(0, 4).toUpperCase(), cls: 't-file' };
+  }
+
+  function badgeEl(name, extraClass) {
+    var t = fileType(name);
+    var b = document.createElement('span');
+    b.className = 'ftype ' + t.cls + (extraClass ? ' ' + extraClass : '');
+    b.textContent = t.label;
+    return b;
   }
 
   function safeFileName(name) {
@@ -143,7 +201,12 @@
     return 'https://github.com/' + state.cfg.owner + '/' + state.cfg.repo;
   }
 
-  // ---------------------------------------------------------------- storage
+  function truncate(s, n) {
+    s = String(s || '');
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  /* ---------------------------------------------------------------- storage */
   function loadStored() {
     try {
       var t = localStorage.getItem(LS_TOKEN);
@@ -171,7 +234,7 @@
     try { localStorage.setItem(LS_CFG, JSON.stringify(state.cfg)); } catch (e) { /* 무시 */ }
   }
 
-  // ---------------------------------------------------------------- api
+  /* ---------------------------------------------------------------- api */
   function ApiError(status, message, payload) {
     var err = new Error(message);
     err.name = 'ApiError';
@@ -306,7 +369,7 @@
     }
   }
 
-  // ---------------------------------------------------------------- UI 기본
+  /* ---------------------------------------------------------------- UI 기본 */
   var toastTimer = null;
   function toast(msg, kind) {
     var el = $('toast');
@@ -326,9 +389,13 @@
     el.title = title || text;
   }
 
+  function repoLabel() {
+    return (state.repoInfo && state.repoInfo.full_name) ? state.repoInfo.full_name : (state.cfg.owner + '/' + state.cfg.repo);
+  }
+
   function refreshConnUI() {
     if (state.conn === 'ok') {
-      setPill('ok', '연결됨 ✅', (state.repoInfo && state.repoInfo.full_name ? state.repoInfo.full_name : state.cfg.owner + '/' + state.cfg.repo) + ' (비공개)');
+      setPill('ok', '연결됨', repoLabel() + (state.repoInfo && state.repoInfo.private === false ? ' · 공개 저장소!' : ' (비공개)'));
     } else if (state.conn === 'checking') {
       setPill('busy', '확인 중…', 'GitHub에 연결을 확인하는 중입니다');
     } else if (state.conn === 'error') {
@@ -340,9 +407,9 @@
     var banner = $('setupBanner');
     if (banner) banner.hidden = (state.conn === 'ok');
 
+    var isPublic = state.conn === 'ok' && state.repoInfo && state.repoInfo.private === false;
     var privacy = $('privacyBanner');
     if (privacy) {
-      var isPublic = state.conn === 'ok' && state.repoInfo && state.repoInfo.private === false;
       privacy.hidden = !isPublic;
       if (isPublic) {
         var pl = $('privacyLink');
@@ -350,11 +417,46 @@
       }
     }
 
+    /* 사이드바 워크스페이스 카드 */
+    var dot = $('wsDot');
+    var wsName = $('wsName');
+    var wsRepo = $('wsRepo');
+    var wsPrivacy = $('wsPrivacy');
+    var wsCard = $('wsCard');
+    if (dot) dot.className = 'ws-dot' + (state.conn === 'ok' ? ' ok' : state.conn === 'checking' ? ' busy' : state.conn === 'error' ? ' err' : '');
+    if (wsName) {
+      wsName.textContent = state.conn === 'ok' ? (state.cfg.repo || '워크스페이스')
+        : state.conn === 'checking' ? '확인 중…'
+          : state.conn === 'error' ? '연결 오류' : '연결 안 됨';
+    }
+    if (wsRepo) wsRepo.textContent = state.conn === 'ok' ? repoLabel() : (state.cfg.owner + '/' + state.cfg.repo);
+    if (wsPrivacy) {
+      wsPrivacy.textContent = isPublic ? '공개 저장소 — 주의' : '비공개 저장소 · 토큰은 브라우저에만';
+    }
+    if (wsCard) wsCard.classList.toggle('is-warn', !!isPublic);
+
+    /* 설정 화면 연결 상태 */
+    var cdot = $('connDot');
+    var ctitle = $('connTitle');
+    var crepo = $('connRepo');
+    if (cdot) cdot.className = 'conn-dot' + (state.conn === 'ok' ? ' ok' : state.conn === 'checking' ? ' busy' : state.conn === 'error' ? ' err' : '');
+    if (ctitle) {
+      ctitle.textContent = state.conn === 'ok' ? '연결되었습니다'
+        : state.conn === 'checking' ? '연결 확인 중…'
+          : state.conn === 'error' ? '연결에 실패했습니다'
+            : state.token ? '토큰이 저장되어 있습니다' : '연결되지 않았습니다';
+    }
+    if (crepo) crepo.textContent = repoLabel();
+    var tokenState = $('tokenState');
+    if (tokenState) {
+      tokenState.textContent = state.token
+        ? '토큰 저장됨 — 이 브라우저에만 보관, 외부 전송 없음'
+        : '저장된 토큰 없음';
+    }
+
     var footer = $('footerConn');
     if (footer) {
-      footer.textContent = state.conn === 'ok'
-        ? '연결: ' + (state.repoInfo && state.repoInfo.full_name ? state.repoInfo.full_name : state.cfg.owner + '/' + state.cfg.repo)
-        : '';
+      footer.textContent = state.conn === 'ok' ? '연결: ' + repoLabel() : '';
     }
 
     var link = $('repoLink');
@@ -373,6 +475,12 @@
       var active = tabs[j].getAttribute('data-tab') === name;
       tabs[j].classList.toggle('is-active', active);
       tabs[j].setAttribute('aria-selected', active ? 'true' : 'false');
+      if (active) {
+        var t = $('pageTitle');
+        var s = $('pageSub');
+        if (t && tabs[j].getAttribute('data-title')) t.textContent = tabs[j].getAttribute('data-title');
+        if (s && tabs[j].getAttribute('data-sub')) s.textContent = tabs[j].getAttribute('data-sub');
+      }
     }
     if (name === 'outbox' && !state.loaded.outbox) loadOutbox();
     if (name === 'inbox') {
@@ -387,17 +495,22 @@
       if (cr) cr.value = state.cfg.repo;
       refreshConnUI();
     }
+    var content = $('content');
+    if (content) content.scrollTop = 0;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // ---------------------------------------------------------------- 연결
+  /* ---------------------------------------------------------------- 연결 */
   async function connect(silent) {
     if (!state.token) {
       state.conn = 'idle';
       refreshConnUI();
       if (!silent) {
-        $('connResult').className = 'conn-result err';
-        $('connResult').textContent = '먼저 토큰을 입력하고 저장해 주세요.';
+        var cr0 = $('connResult');
+        if (cr0) {
+          cr0.className = 'conn-result err';
+          cr0.textContent = '먼저 토큰을 입력하고 저장해 주세요.';
+        }
       }
       return false;
     }
@@ -414,7 +527,7 @@
       if (ok) {
         ok.className = 'conn-result ok';
         var push = info && info.permissions ? info.permissions.push : true;
-        ok.textContent = '연결되었습니다 ✅ ' + (info.full_name || '') +
+        ok.textContent = '연결되었습니다 · ' + (info.full_name || '') +
           (info.private ? ' (비공개 저장소)' : ' — 경고: 이 저장소는 공개 상태입니다!') +
           (push === false ? ' · 경고: 쓰기 권한이 없습니다(Contents: Read and write 확인).' : '');
       }
@@ -435,22 +548,25 @@
     }
   }
 
-  // ---------------------------------------------------------------- 첨부
+  /* ---------------------------------------------------------------- 첨부 */
   function addFiles(fileList) {
     var incoming = Array.prototype.slice.call(fileList || []);
     var blocked = 0;
     var big = 0;
+    var added = 0;
     incoming.forEach(function (f) {
       if (f.size > BLOCK_BYTES) { blocked++; return; }
       if (f.size > WARN_BYTES) big++;
       var dup = state.files.some(function (x) {
         return x.name === f.name && x.size === f.size && x.lastModified === f.lastModified;
       });
-      if (!dup) state.files.push(f);
+      if (!dup) { state.files.push(f); added++; }
     });
     renderFiles();
     if (blocked) toast(blocked + '개 파일이 너무 커서(95MB 초과) 제외했습니다.', 'error');
     else if (big) toast(big + '개 파일이 20MB를 넘습니다. 업로드가 느리거나 실패할 수 있습니다.', 'error');
+    else if (added > 1) toast(added + '개 파일을 첨부했습니다.', 'ok');
+    return added;
   }
 
   function renderFiles() {
@@ -458,26 +574,40 @@
     if (!ul) return;
     ul.innerHTML = '';
     ul.hidden = state.files.length === 0;
+
+    var tag = $('fileCountTag');
+    if (tag) {
+      tag.hidden = state.files.length === 0;
+      tag.textContent = String(state.files.length);
+    }
+
     state.files.forEach(function (f, idx) {
       var li = document.createElement('li');
-      var icon = document.createElement('span');
-      icon.textContent = fileIcon(f.name);
+      li.appendChild(badgeEl(f.name));
+
       var name = document.createElement('span');
       name.className = 'fname';
       name.textContent = f.name;
-      var size = document.createElement('span');
-      size.className = 'fsize';
-      size.textContent = fmtSize(f.size) + (f.size > WARN_BYTES ? ' · 큼' : '');
+      name.title = f.name;
+      li.appendChild(name);
+
+      var meta = document.createElement('span');
+      meta.className = 'fmeta';
+      meta.textContent = fmtSize(f.size) + (f.size > WARN_BYTES ? ' · 큼' : '') + ' · ' + (ext(f.name) || 'file').toUpperCase();
+      li.appendChild(meta);
+
       var rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 'fremove';
       rm.setAttribute('aria-label', f.name + ' 제거');
-      rm.textContent = '✕';
+      rm.title = '제거';
+      rm.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
       rm.addEventListener('click', function () {
         state.files.splice(idx, 1);
         renderFiles();
       });
-      li.appendChild(icon); li.appendChild(name); li.appendChild(size); li.appendChild(rm);
+      li.appendChild(rm);
+
       ul.appendChild(li);
     });
   }
@@ -519,6 +649,19 @@
     return lines.join('\n');
   }
 
+  function setSendStatus(text, kind) {
+    var status = $('sendStatus');
+    if (!status) return;
+    status.className = 'send-status' + (kind ? ' is-' + kind : '');
+    status.innerHTML = '';
+    if (kind === 'work') {
+      var sp = document.createElement('span');
+      sp.className = 'spinner';
+      status.appendChild(sp);
+    }
+    status.appendChild(document.createTextNode(text));
+  }
+
   async function sendPrompt() {
     var bodyEl = $('promptBody');
     var titleEl = $('promptTitle');
@@ -549,12 +692,11 @@
     }
 
     var btn = $('btnSend');
-    var status = $('sendStatus');
     var label = btn.querySelector('.btn-label');
     btn.disabled = true;
+    btn.classList.add('is-busy');
     label.textContent = '보내는 중…';
-    status.className = 'send-status';
-    status.textContent = '업로드 준비 중…';
+    setSendStatus('업로드 준비 중…', 'work');
 
     var stamp = stampKST();
     if (!title) {
@@ -568,14 +710,14 @@
     try {
       for (var i = 0; i < total; i++) {
         var f = state.files[i];
-        status.textContent = '파일 업로드 중… (' + (i + 1) + '/' + total + ') ' + truncate(f.name, 40);
+        setSendStatus('파일 업로드 중… (' + (i + 1) + '/' + total + ') ' + truncate(f.name, 40), 'work');
         var path = 'inbox/files/' + stamp + '_' + safeFileName(f.name);
         var bytes = new Uint8Array(await f.arrayBuffer());
         await putNewFile(path, bytes, 'add: ' + f.name + ' (Pickle PC)');
         uploaded.push({ path: path, name: f.name, original: safeFileName(f.name), size: f.size });
       }
 
-      status.textContent = '요청 파일 작성 중…';
+      setSendStatus('요청 파일 작성 중…', 'work');
       var md = buildMarkdown(title, body, uploaded, stamp);
       await putNewFile(mdPath, new TextEncoder().encode(md), 'add: ' + title + ' (Pickle PC)');
 
@@ -587,24 +729,20 @@
       state.files = [];
       renderFiles();
       updateCounter();
-      status.className = 'send-status is-ok';
-      status.textContent = '완료 — inbox/' + stamp + ' 로 저장했습니다.';
-      toast('보냈습니다 ✅', 'ok');
+      setSendStatus('완료 — inbox/' + stamp + ' 로 저장했습니다.', 'ok');
+      toast('보냈습니다', 'ok');
       state.loaded.inbox = false;
       state.loaded.inboxFiles = false;
+      state.counts.inbox = null;
+      renderCounts();
     } catch (e) {
-      status.className = 'send-status is-err';
-      status.textContent = e.message || '업로드에 실패했습니다.';
+      setSendStatus(e.message || '업로드에 실패했습니다.', 'err');
       toast(e.message || '업로드에 실패했습니다.', 'error');
     } finally {
       btn.disabled = false;
+      btn.classList.remove('is-busy');
       label.textContent = '보내기';
     }
-  }
-
-  function truncate(s, n) {
-    s = String(s || '');
-    return s.length > n ? s.slice(0, n - 1) + '…' : s;
   }
 
   function showResult(mdPath, fileCount) {
@@ -641,14 +779,67 @@
     }
   }
 
-  // ---------------------------------------------------------------- 목록
+  /* ---------------------------------------------------------------- 목록 */
+  var LS_ICONS = {
+    tray: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13.5h4l1.4 2.6h5.2L16 13.5h4"/><path d="M6.4 4.5h11.2l2.4 9v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5z"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 3.5 10.8 14.2"/><path d="M21.5 3.5 15 21l-4.2-6.8L4 10z"/></svg>',
+    clip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.2 11.6 20a4.6 4.6 0 0 1-6.5-6.5l8.9-8.9a3.1 3.1 0 0 1 4.4 4.4l-8.9 8.9a1.6 1.6 0 0 1-2.3-2.3l8.2-8.2"/></svg>',
+    key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h9"/><path d="M17.5 12v3.5"/><path d="M20.5 12v2.5"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 2.8 20h18.4z"/><path d="M12 10v4.2"/><path d="M12 17.4h.01"/></svg>'
+  };
+
+  function emptyState(ul, opts, kind) {
+    if (!ul) return;
+    ul.innerHTML = '';
+    var o = typeof opts === 'string' ? { title: opts } : (opts || {});
+    var k = kind || o.kind || 'empty';
+    var li = document.createElement('li');
+    li.className = 'list-state ' + k;
+
+    if (k === 'loading') {
+      li.textContent = o.title || '불러오는 중…';
+      ul.appendChild(li);
+      return;
+    }
+
+    var iconName = o.icon || (k === 'error' ? 'alert' : 'tray');
+    li.innerHTML =
+      '<span class="ls-icon">' + (LS_ICONS[iconName] || LS_ICONS.tray) + '</span>' +
+      '<span class="ls-title">' + esc(o.title || '') + '</span>' +
+      (o.desc ? '<span class="ls-desc">' + esc(o.desc) + '</span>' : '') +
+      (o.actionLabel ? '<span class="ls-action"><button type="button" class="btn btn-secondary btn-sm">' + esc(o.actionLabel) + '</button></span>' : '');
+
+    if (o.actionLabel && o.onAction) {
+      var b = li.querySelector('.ls-action button');
+      if (b) b.addEventListener('click', o.onAction);
+    }
+    ul.appendChild(li);
+  }
+
+  function metaLine(parts) {
+    var wrap = document.createElement('div');
+    wrap.className = 'item-meta';
+    parts.forEach(function (p, i) {
+      if (!p || !p.text) return;
+      if (i > 0) {
+        var d = document.createElement('span');
+        d.className = 'dot';
+        wrap.appendChild(d);
+      }
+      var s = document.createElement('span');
+      if (p.cls) s.className = p.cls;
+      s.textContent = p.text;
+      if (p.title) s.title = p.title;
+      wrap.appendChild(s);
+    });
+    return wrap;
+  }
+
   function itemRow(opts) {
     var li = document.createElement('li');
     li.className = 'item';
 
-    var icon = document.createElement('div');
-    icon.className = 'item-icon';
-    icon.textContent = opts.icon || fileIcon(opts.name);
+    li.appendChild(badgeEl(opts.name, 'lg'));
 
     var main = document.createElement('div');
     main.className = 'item-main';
@@ -656,15 +847,11 @@
     nm.className = 'item-name';
     nm.textContent = opts.displayName || opts.name;
     nm.title = opts.name;
-    var meta = document.createElement('div');
-    meta.className = 'item-meta';
-    meta.textContent = opts.meta || '';
     main.appendChild(nm);
-    main.appendChild(meta);
+    main.appendChild(metaLine(opts.meta || []));
 
     var actions = document.createElement('div');
     actions.className = 'item-actions';
-
     (opts.actions || []).forEach(function (a) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -674,48 +861,84 @@
       actions.appendChild(b);
     });
 
-    li.appendChild(icon);
     li.appendChild(main);
     li.appendChild(actions);
     return li;
   }
 
-  function emptyState(ul, text, kind) {
-    ul.innerHTML = '';
-    var li = document.createElement('li');
-    li.className = kind || 'empty';
-    li.textContent = text;
-    ul.appendChild(li);
-  }
-
   /** 목록을 불러오기 전에 연결 상태를 확인한다 */
-  async function readyForList(ul, emptyHint) {
-    if (!state.token) { emptyState(ul, emptyHint); return false; }
+  async function readyForList(ul, emptyOpts) {
+    if (!state.token) { emptyState(ul, emptyOpts); return false; }
     if (state.conn !== 'ok') {
       var ok = await connect(true);
-      if (!ok) { emptyState(ul, state.connMessage || 'GitHub 연결을 확인하지 못했습니다.', 'error'); return false; }
+      if (!ok) {
+        emptyState(ul, {
+          kind: 'error',
+          icon: 'alert',
+          title: 'GitHub에 연결하지 못했습니다',
+          desc: state.connMessage || '설정 탭에서 토큰과 저장소 이름을 확인해 주세요.',
+          actionLabel: '설정으로 이동',
+          onAction: function () { showTab('settings'); }
+        }, 'error');
+        return false;
+      }
     }
     return true;
+  }
+
+  function renderCounts() {
+    var o = $('outboxCount');
+    var i = $('inboxCount');
+    if (o) {
+      o.hidden = state.counts.outbox === null;
+      if (state.counts.outbox !== null) o.textContent = String(state.counts.outbox);
+    }
+    if (i) {
+      i.hidden = state.counts.inbox === null;
+      if (state.counts.inbox !== null) i.textContent = String(state.counts.inbox);
+    }
   }
 
   async function loadOutbox() {
     var ul = $('outboxList');
     if (!ul) return;
-    if (!(await readyForList(ul, 'GitHub 토큰을 연결하면 피클이 올려둔 결과물이 여기에 나타납니다. (설정 탭)'))) return;
-    emptyState(ul, '불러오는 중…', 'loading');
+    if (!(await readyForList(ul, {
+      icon: 'key',
+      title: 'GitHub 토큰을 연결하면 결과물이 보입니다',
+      desc: '설정 탭에서 토큰을 붙여넣으면 피클이 outbox/에 올린 파일이 여기에 나타납니다.',
+      actionLabel: '토큰 연결하기',
+      onAction: function () { showTab('settings'); }
+    }))) return;
+    emptyState(ul, { title: '불러오는 중…' }, 'loading');
     try {
       var items = await listDir('outbox');
-      items = items.filter(function (it) { return it.type === 'file'; })
+      items = items.filter(function (it) { return it.type === 'file' && it.name !== '.gitkeep'; })
         .sort(function (a, b) { return String(b.name).localeCompare(String(a.name)); });
+      state.counts.outbox = items.length;
+      renderCounts();
       if (!items.length) {
-        emptyState(ul, '아직 받은 결과물이 없습니다. 피클이 outbox/에 파일을 올리면 여기에 보입니다.');
+        emptyState(ul, {
+          icon: 'tray',
+          title: '아직 받은 결과물이 없습니다',
+          desc: '피클이 outbox/에 파일을 올리면 이곳에 표시됩니다. 요청을 보낸 뒤 새로고침해 확인해 보세요.',
+          actionLabel: '새로고침',
+          onAction: function () { loadOutbox(); }
+        });
       } else {
         ul.innerHTML = '';
         items.forEach(function (it) { ul.appendChild(outboxRow(it)); });
       }
       state.loaded.outbox = true;
     } catch (e) {
-      emptyState(ul, e.message || '목록을 불러오지 못했습니다.', 'error');
+      state.counts.outbox = null;
+      renderCounts();
+      emptyState(ul, {
+        icon: 'alert',
+        title: '목록을 불러오지 못했습니다',
+        desc: e.message || '잠시 후 다시 시도해 주세요.',
+        actionLabel: '다시 시도',
+        onAction: function () { loadOutbox(); }
+      }, 'error');
     }
   }
 
@@ -740,8 +963,11 @@
     return itemRow({
       name: it.name,
       displayName: prettyName(it.name),
-      icon: fileIcon(it.name),
-      meta: [fmtSize(it.size), fmtDate(it.updated_at || it.created_at), 'outbox/' + it.name].filter(Boolean).join(' · '),
+      meta: [
+        { text: fmtSize(it.size) },
+        { text: fmtDate(it.updated_at || it.created_at) },
+        { text: 'outbox/' + it.name, cls: 'path', title: 'outbox/' + it.name }
+      ],
       actions: actions
     });
   }
@@ -760,14 +986,28 @@
   async function loadInbox() {
     var ul = $('inboxList');
     if (!ul) return;
-    if (!(await readyForList(ul, 'GitHub 토큰을 연결하면 보낸 요청 기록이 여기에 나타납니다. (설정 탭)'))) return;
-    emptyState(ul, '불러오는 중…', 'loading');
+    if (!(await readyForList(ul, {
+      icon: 'key',
+      title: 'GitHub 토큰을 연결하면 보낸 요청이 보입니다',
+      desc: '설정 탭에서 토큰을 붙여넣으면 지난 요청 기록이 여기에 나타납니다.',
+      actionLabel: '토큰 연결하기',
+      onAction: function () { showTab('settings'); }
+    }))) return;
+    emptyState(ul, { title: '불러오는 중…' }, 'loading');
     try {
       var items = await listDir('inbox');
       items = items.filter(function (it) { return it.type === 'file' && /\.md$/i.test(it.name); })
         .sort(function (a, b) { return String(b.name).localeCompare(String(a.name)); });
+      state.counts.inbox = items.length;
+      renderCounts();
       if (!items.length) {
-        emptyState(ul, '아직 보낸 요청이 없습니다. “보내기” 탭에서 첫 요청을 남겨 보세요.');
+        emptyState(ul, {
+          icon: 'send',
+          title: '아직 보낸 요청이 없습니다',
+          desc: '보내기 탭에서 첫 요청을 남겨 보세요. 보낸 내용은 여기에 기록됩니다.',
+          actionLabel: '보내기',
+          onAction: function () { showTab('compose'); }
+        });
       } else {
         ul.innerHTML = '';
         items.forEach(function (it) {
@@ -775,8 +1015,11 @@
           ul.appendChild(itemRow({
             name: it.name,
             displayName: prettyName(it.name.replace(/\.md$/i, '')),
-            icon: '📝',
-            meta: [(stampToKst(m ? m[1] : '') || fmtDate(it.updated_at)), fmtSize(it.size), 'inbox/' + it.name].filter(Boolean).join(' · '),
+            meta: [
+              { text: stampToKst(m ? m[1] : '') || fmtDate(it.updated_at) },
+              { text: fmtSize(it.size) },
+              { text: 'inbox/' + it.name, cls: 'path' }
+            ],
             actions: [
               { label: '내용 보기', onClick: function () { previewFile(it.path, it.name); } },
               { label: '삭제', variant: 'btn-danger-ghost', onClick: function () { deleteFile(it.path, it.name, function () { loadInbox(); }); } }
@@ -786,21 +1029,39 @@
       }
       state.loaded.inbox = true;
     } catch (e) {
-      emptyState(ul, e.message || '목록을 불러오지 못했습니다.', 'error');
+      state.counts.inbox = null;
+      renderCounts();
+      emptyState(ul, {
+        icon: 'alert',
+        title: '목록을 불러오지 못했습니다',
+        desc: e.message || '잠시 후 다시 시도해 주세요.',
+        actionLabel: '다시 시도',
+        onAction: function () { loadInbox(); }
+      }, 'error');
     }
   }
 
   async function loadInboxFiles() {
     var ul = $('inboxFilesList');
     if (!ul) return;
-    if (!(await readyForList(ul, '토큰을 연결하면 첨부 파일 목록이 나타납니다.'))) return;
-    emptyState(ul, '불러오는 중…', 'loading');
+    if (!(await readyForList(ul, {
+      icon: 'key',
+      title: '토큰을 연결하면 첨부 파일 목록이 보입니다',
+      desc: '요청에 첨부한 원본 파일이 여기에 보관됩니다.',
+      actionLabel: '토큰 연결하기',
+      onAction: function () { showTab('settings'); }
+    }))) return;
+    emptyState(ul, { title: '불러오는 중…' }, 'loading');
     try {
       var items = await listDir('inbox/files');
       items = items.filter(function (it) { return it.type === 'file' && it.name !== '.gitkeep'; })
         .sort(function (a, b) { return String(b.name).localeCompare(String(a.name)); });
       if (!items.length) {
-        emptyState(ul, '아직 첨부한 파일이 없습니다.');
+        emptyState(ul, {
+          icon: 'clip',
+          title: '아직 첨부한 파일이 없습니다',
+          desc: '요청을 보낼 때 파일을 함께 첨부하면 원본이 inbox/files/ 에 보관됩니다.'
+        });
       } else {
         ul.innerHTML = '';
         items.forEach(function (it) {
@@ -813,15 +1074,24 @@
           ul.appendChild(itemRow({
             name: it.name,
             displayName: stripStamp(it.name),
-            icon: fileIcon(it.name),
-            meta: [fmtSize(it.size), fmtDate(it.updated_at)].filter(Boolean).join(' · '),
+            meta: [
+              { text: fmtSize(it.size) },
+              { text: fmtDate(it.updated_at) },
+              { text: 'inbox/files/', cls: 'path' }
+            ],
             actions: actions
           }));
         });
       }
       state.loaded.inboxFiles = true;
     } catch (e) {
-      emptyState(ul, e.message || '목록을 불러오지 못했습니다.', 'error');
+      emptyState(ul, {
+        icon: 'alert',
+        title: '목록을 불러오지 못했습니다',
+        desc: e.message || '잠시 후 다시 시도해 주세요.',
+        actionLabel: '다시 시도',
+        onAction: function () { loadInboxFiles(); }
+      }, 'error');
     }
   }
 
@@ -830,14 +1100,13 @@
     return m ? m[2] : name;
   }
 
-  // ---------------------------------------------------------------- 파일 동작
+  /* ---------------------------------------------------------------- 파일 동작 */
   function friendlyDownloadName(name) {
     return stripStamp(name);
   }
 
   async function fetchRaw(path) {
-    var res = await api(repoBase() + '/contents/' + encPath(path), { raw: true });
-    return res;
+    return api(repoBase() + '/contents/' + encPath(path), { raw: true });
   }
 
   async function downloadFile(path, name) {
@@ -881,8 +1150,10 @@
     var m = $('previewModal');
     if (!m) return;
     m.hidden = true;
-    $('previewBody').innerHTML = '';
+    var b = $('previewBody');
+    if (b) b.innerHTML = '';
     state.preview = null;
+    document.body.style.overflow = '';
   }
 
   async function previewFile(path, name) {
@@ -891,8 +1162,15 @@
     if (!modal || !bodyEl) return;
     state.preview = { path: path, name: name };
     $('previewTitle').textContent = name;
+    var badge = $('previewBadge');
+    if (badge) {
+      var t = fileType(name);
+      badge.className = 'ftype lg ' + t.cls;
+      badge.textContent = t.label;
+    }
     bodyEl.innerHTML = '<p class="muted small" style="margin:0">불러오는 중…</p>';
     modal.hidden = false;
+    document.body.style.overflow = 'hidden';
     try {
       var res = await fetchRaw(path);
       var e = ext(name);
@@ -933,6 +1211,7 @@
         if (truncated) {
           var note = document.createElement('p');
           note.className = 'muted small';
+          note.style.marginTop = '10px';
           note.textContent = '내용이 길어 앞부분만 표시했습니다. 전체는 다운로드해 확인해 주세요.';
           bodyEl.appendChild(note);
         }
@@ -959,8 +1238,7 @@
       if (inList) { html.push('</ul>'); inList = false; }
     }
 
-    lines.forEach(function (raw) {
-      var line = raw;
+    lines.forEach(function (line) {
       if (/^```/.test(line)) {
         if (inCode) {
           html.push('<pre class="md-pre"><code>' + esc(codeBuf.join('\n')) + '</code></pre>');
@@ -988,7 +1266,7 @@
         return;
       }
       if (/^---+$/.test(line.trim())) { html.push('<hr>'); return; }
-      if (/^>\s?/.test(line)) { html.push('<p style="border-left:3px solid var(--line-strong);padding-left:10px;color:var(--muted)">' + inline(line.replace(/^>\s?/, '')) + '</p>'); return; }
+      if (/^>\s?/.test(line)) { html.push('<p style="border-left:3px solid var(--line-2);padding-left:10px;color:var(--muted)">' + inline(line.replace(/^>\s?/, '')) + '</p>'); return; }
       html.push('<p>' + inline(line) + '</p>');
     });
     if (inCode && codeBuf.length) html.push('<pre class="md-pre"><code>' + esc(codeBuf.join('\n')) + '</code></pre>');
@@ -1005,7 +1283,7 @@
     return out;
   }
 
-  // ---------------------------------------------------------------- 이벤트
+  /* ---------------------------------------------------------------- 이벤트 */
   function updateCounter() {
     var el = $('charCount');
     var ta = $('promptBody');
@@ -1013,13 +1291,32 @@
     el.textContent = ta.value.length.toLocaleString('ko-KR') + '자';
   }
 
+  function applyTemplate(key) {
+    var t = TEMPLATES[key];
+    if (!t) return;
+    var ta = $('promptBody');
+    var titleEl = $('promptTitle');
+    if (!ta) return;
+    var cur = ta.value;
+    if (cur.trim()) {
+      ta.value = cur.replace(/\s+$/, '') + '\n\n' + t.body;
+    } else {
+      ta.value = t.body;
+    }
+    if (titleEl && !titleEl.value.trim()) titleEl.value = t.title;
+    ta.focus();
+    try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) { /* 무시 */ }
+    updateCounter();
+    toast('템플릿을 넣었습니다. 내용을 다듬어 보내세요.', 'ok');
+  }
+
   function wire() {
-    // 탭
+    /* 탭 */
     document.querySelectorAll('.tab').forEach(function (t) {
       t.addEventListener('click', function () { showTab(t.getAttribute('data-tab')); });
     });
 
-    // 설정 이동
+    /* 화면 이동 */
     on($('btnGoSettings'), 'click', function () { showTab('settings'); });
     document.querySelectorAll('[data-action="open-settings"]').forEach(function (b) {
       b.addEventListener('click', function () { showTab('settings'); });
@@ -1049,7 +1346,12 @@
       if (e.key === 'Escape') closePreview();
     });
 
-    // 프롬프트
+    /* 빠른 템플릿 */
+    document.querySelectorAll('.tpl').forEach(function (chip) {
+      chip.addEventListener('click', function () { applyTemplate(chip.getAttribute('data-tpl')); });
+    });
+
+    /* 프롬프트 */
     var ta = $('promptBody');
     if (ta) {
       ta.addEventListener('input', updateCounter);
@@ -1057,12 +1359,6 @@
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
           e.preventDefault();
           sendPrompt();
-        }
-      });
-      ta.addEventListener('paste', function (e) {
-        var items = e.clipboardData && e.clipboardData.files;
-        if (items && items.length) {
-          addFiles(items);
         }
       });
     }
@@ -1078,12 +1374,11 @@
       state.files = [];
       renderFiles();
       updateCounter();
-      var s = $('sendStatus');
-      if (s) { s.textContent = ''; s.className = 'send-status'; }
+      setSendStatus('', '');
       if (ta) ta.focus();
     });
 
-    // 드롭존
+    /* 첨부: 드롭존 */
     var dz = $('dropzone');
     var fi = $('fileInput');
     if (dz && fi) {
@@ -1098,18 +1393,34 @@
       ['dragenter', 'dragover'].forEach(function (ev) {
         dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('is-drag'); });
       });
-      ['dragleave', 'drop'].forEach(function (ev) {
-        dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('is-drag'); });
+      ['dragleave', 'dragend'].forEach(function (ev) {
+        dz.addEventListener(ev, function (e) {
+          if (ev === 'dragleave' && dz.contains(e.relatedTarget)) return;
+          dz.classList.remove('is-drag');
+        });
       });
       dz.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dz.classList.remove('is-drag');
         if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
       });
-      // 페이지 전체로 파일이 떨어져도 브라우저가 파일을 열지 않도록
+      /* 페이지 어디에 떨어져도 브라우저가 파일을 열지 않도록 */
       window.addEventListener('dragover', function (e) { e.preventDefault(); });
       window.addEventListener('drop', function (e) { e.preventDefault(); });
     }
 
-    // 설정: 토큰
+    /* 붙여넣기로 파일 첨부 (보내기 화면에서) */
+    document.addEventListener('paste', function (e) {
+      var panel = $('tab-compose');
+      if (!panel || panel.hidden) return;
+      var files = e.clipboardData && e.clipboardData.files;
+      if (files && files.length) {
+        e.preventDefault();
+        addFiles(files);
+      }
+    });
+
+    /* 설정: 토큰 */
     on($('btnToggleToken'), 'click', function () {
       var inp = $('tokenInput');
       if (!inp) return;
@@ -1141,19 +1452,24 @@
       state.connMessage = '';
       state.repoInfo = null;
       state.loaded.outbox = state.loaded.inbox = state.loaded.inboxFiles = false;
+      state.counts.outbox = state.counts.inbox = null;
+      renderCounts();
       var r = $('connResult');
-      if (r) { r.className = 'conn-result'; r.textContent = '토큰을 삭제했습니다.'; }
+      if (r) { r.className = 'conn-result'; r.textContent = '토큰을 삭제했습니다 — 데이터는 저장소에 그대로 있습니다.'; }
       refreshConnUI();
       toast('토큰을 삭제했습니다.', 'ok');
     });
 
-    // 설정: 저장소
+    /* 설정: 저장소 */
     on($('btnSaveCfg'), 'click', function () {
       var o = ($('cfgOwner').value || '').trim();
       var r = ($('cfgRepo').value || '').trim();
       if (!o || !r) { toast('계정과 저장소 이름을 모두 입력해 주세요.', 'error'); return; }
       saveCfg({ owner: o, repo: r });
       state.conn = 'idle';
+      state.loaded.outbox = state.loaded.inbox = state.loaded.inboxFiles = false;
+      state.counts.outbox = state.counts.inbox = null;
+      renderCounts();
       refreshConnUI();
       toast('저장소 설정을 저장했습니다.', 'ok');
       connect(true);
@@ -1167,7 +1483,7 @@
       toast('기본값으로 되돌렸습니다.', 'ok');
     });
 
-    // 토큰 입력 후 Enter
+    /* 토큰 입력 후 Enter */
     on($('tokenInput'), 'keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); $('btnSaveToken').click(); }
     });
@@ -1178,14 +1494,9 @@
     wire();
     updateCounter();
     renderFiles();
+    renderCounts();
     refreshConnUI();
-    var t = $('promptTitle');
-    if (state.token) {
-      connect(true);
-    }
-    if (t && !state.token) {
-      // 토큰이 없으면 첫 화면에서 바로 설정으로 유도하지 않고 배너로만 알린다
-    }
+    if (state.token) connect(true);
   }
 
   if (document.readyState === 'loading') {

@@ -2,239 +2,460 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pickle PC — 프롬프트·파일 주고받기</title>
-<meta name="description" content="PC에서 긴 프롬프트를 쓰고 파일을 주고받는 피클 전용 화면. 모든 데이터는 내 비공개 GitHub 저장소에만 저장됩니다.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233b5bfd'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='white' font-family='sans-serif'%3E%E2%9C%92%3C/text%3E%3C/svg%3E">
+<meta name="description" content="PC에서 긴 프롬프트를 쓰고 파일을 주고받는 피클 전용 워크스페이스. 모든 데이터는 내 비공개 GitHub 저장소에만 저장됩니다.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f9d63'/%3E%3Cg transform='rotate(-32 32 32)'%3E%3Crect x='25' y='14' width='14' height='37' rx='7' fill='%23eafaf2'/%3E%3Ccircle cx='29.5' cy='24' r='1.9' fill='%2314a86d'/%3E%3Ccircle cx='34.5' cy='30' r='1.9' fill='%2314a86d'/%3E%3Ccircle cx='29' cy='37' r='1.9' fill='%2314a86d'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
-<header class="topbar">
-  <div class="wrap topbar-inner">
+<div class="app">
+
+  <!-- ================= 사이드바 ================= -->
+  <aside class="sidebar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">🥒</span>
-      <span class="brand-name">Pickle<span class="brand-sub">PC</span></span>
-    </div>
-    <div class="top-actions">
-      <span id="statusPill" class="pill pill-idle" title="GitHub 연결 상태">미연결</span>
-      <button type="button" class="btn btn-ghost" id="btnGoSettings">설정</button>
-    </div>
-  </div>
-</header>
-
-<nav class="tabs-bar">
-  <div class="wrap tabs" role="tablist" aria-label="화면 선택">
-    <button type="button" class="tab is-active" role="tab" id="tabbtn-compose" data-tab="compose" aria-selected="true">보내기</button>
-    <button type="button" class="tab" role="tab" id="tabbtn-outbox" data-tab="outbox" aria-selected="false">받은 결과물</button>
-    <button type="button" class="tab" role="tab" id="tabbtn-inbox" data-tab="inbox" aria-selected="false">보낸 요청</button>
-    <button type="button" class="tab" role="tab" id="tabbtn-settings" data-tab="settings" aria-selected="false">설정</button>
-  </div>
-</nav>
-
-<main class="wrap main">
-
-  <!-- ============ 보내기 ============ -->
-  <section class="panel" id="tab-compose" role="tabpanel" aria-labelledby="tabbtn-compose">
-    <div class="setup-banner banner-danger" id="privacyBanner" hidden>
-      <div class="setup-banner-text">
-        <strong>⚠️ 연결된 저장소가 공개(Public) 상태입니다.</strong>
-        <span>지금 보내는 프롬프트와 파일은 누구나 볼 수 있습니다. GitHub 저장소 설정에서 비공개로 바꿔 주세요.</span>
-      </div>
-      <a class="btn btn-primary btn-sm" id="privacyLink" href="https://github.com/sogic8-web/pickle-workspace/settings" target="_blank" rel="noopener">저장소 설정 열기</a>
+      <svg class="brand-logo" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="pgA" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#15b478"/><stop offset="1" stop-color="#0a7749"/>
+          </linearGradient>
+        </defs>
+        <rect width="40" height="40" rx="11" fill="url(#pgA)"/>
+        <g transform="rotate(-32 20 20)">
+          <rect x="15.6" y="8.6" width="8.8" height="22.8" rx="4.4" fill="#eafaf2"/>
+          <circle cx="18.4" cy="15" r="1.15" fill="#14a86d"/>
+          <circle cx="21.7" cy="19" r="1.15" fill="#14a86d"/>
+          <circle cx="18" cy="23.2" r="1.15" fill="#14a86d"/>
+        </g>
+      </svg>
+      <span class="brand-text">
+        <strong>Pickle</strong>
+        <span>Workspace</span>
+      </span>
     </div>
 
-    <div class="setup-banner" id="setupBanner" hidden>
-      <div class="setup-banner-text">
-        <strong>먼저 GitHub 토큰을 연결해 주세요.</strong>
-        <span>토큰은 이 브라우저에만 저장되고, 어디로도 전송되지 않습니다.</span>
-      </div>
-      <button type="button" class="btn btn-primary btn-sm" data-action="open-settings">토큰 연결하기</button>
-    </div>
+    <nav class="sb-nav" role="tablist" aria-label="화면 선택">
+      <p class="nav-label">워크스페이스</p>
 
-    <div class="card">
-      <label class="field-label" for="promptTitle">제목 <span class="muted">(선택 — 비우면 본문에서 자동으로 만듭니다)</span></label>
-      <input id="promptTitle" class="input" type="text" maxlength="80" placeholder="예: 세계은행 질의서 답변 초안 요청" autocomplete="off">
+      <button type="button" class="nav-item tab is-active" role="tab" id="tabbtn-compose" data-tab="compose"
+              data-title="보내기" data-sub="긴 프롬프트를 쓰고 파일을 붙여 피클에게 보냅니다." aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21.5 3.5 10.8 14.2"/><path d="M21.5 3.5 15 21l-4.2-6.8L4 10z"/>
+        </svg>
+        <span>보내기</span>
+      </button>
 
-      <label class="field-label" for="promptBody">프롬프트</label>
-      <textarea id="promptBody" class="textarea" placeholder="하고 싶은 일을 길게 적어 주세요.&#10;예) 첨부한 PDF 두 개를 비교해서 표로 정리하고, 마지막에 핵심 차이 3가지를 뽑아 줘."></textarea>
-      <div class="under-input">
-        <span class="hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 로 바로 보내기</span>
-        <span class="counter" id="charCount">0자</span>
-      </div>
+      <button type="button" class="nav-item tab" role="tab" id="tabbtn-outbox" data-tab="outbox"
+              data-title="받은 결과물" data-sub="피클이 outbox/에 올려 둔 파일을 열어보거나 내려받습니다." aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 13h4l1.4 2.6h5.2L16 13h4"/><path d="M6.2 4h11.6l2.2 9v5.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V13z"/>
+        </svg>
+        <span>받은 결과물</span>
+        <span class="nav-count" id="outboxCount" hidden>0</span>
+      </button>
 
-      <div class="dropzone" id="dropzone" tabindex="0" role="button"
-           aria-label="파일 첨부 — 끌어다 놓거나 클릭해 선택">
-        <div class="dropzone-icon" aria-hidden="true">📎</div>
-        <div class="dropzone-text">
-          <strong>파일을 끌어다 놓거나 클릭해서 선택</strong>
-          <span>이미지 · PDF · HWP · DOCX · XLSX · TXT 등 여러 개 한꺼번에 가능</span>
+      <button type="button" class="nav-item tab" role="tab" id="tabbtn-inbox" data-tab="inbox"
+              data-title="보낸 요청" data-sub="PC에서 보낸 프롬프트 기록과 첨부 파일을 관리합니다." aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l3.1 2"/>
+        </svg>
+        <span>보낸 요청</span>
+        <span class="nav-count" id="inboxCount" hidden>0</span>
+      </button>
+
+      <p class="nav-label">관리</p>
+
+      <button type="button" class="nav-item tab" role="tab" id="tabbtn-settings" data-tab="settings"
+              data-title="설정" data-sub="GitHub 토큰과 데이터 저장소를 관리합니다." aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1" fill="#fff"/><circle cx="15" cy="12" r="2.1" fill="#fff"/><circle cx="7.5" cy="17" r="2.1" fill="#fff"/>
+        </svg>
+        <span>설정</span>
+      </button>
+    </nav>
+
+    <div class="sb-foot">
+      <div class="ws-card" id="wsCard">
+        <div class="ws-top">
+          <span class="ws-dot" id="wsDot"></span>
+          <strong id="wsName">연결 안 됨</strong>
         </div>
-        <input type="file" id="fileInput" multiple hidden>
-      </div>
-      <p class="hint tiny">GitHub Contents API 특성상 <strong>개별 파일 20MB 이하</strong>를 권장합니다. 큰 파일은 나눠서 보내 주세요.</p>
-
-      <ul class="filelist" id="fileList" hidden></ul>
-
-      <div class="send-row">
-        <div class="send-status" id="sendStatus" role="status" aria-live="polite"></div>
-        <div class="send-buttons">
-          <button type="button" class="btn btn-ghost" id="btnClear">비우기</button>
-          <button type="button" class="btn btn-primary" id="btnSend">
-            <span class="btn-label">보내기</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card card-result" id="resultCard" hidden>
-      <div class="result-head">
-        <span class="result-icon" aria-hidden="true">✅</span>
-        <div>
-          <strong>보냈습니다.</strong>
-          <div class="muted small" id="resultPath"></div>
+        <span class="ws-repo" id="wsRepo">sogic8-web/pickle-workspace</span>
+        <div class="ws-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+          <span id="wsPrivacy">비공개 저장소 · 토큰은 브라우저에만</span>
         </div>
       </div>
-      <p class="small muted">이제 피클 앱에서 아래 한 줄을 붙여넣으면 바로 확인합니다.</p>
-      <div class="copy-row">
-        <code id="copyText" class="copy-text"></code>
-        <button type="button" class="btn btn-secondary btn-sm" id="btnCopy">한 줄 복사</button>
-      </div>
-      <div class="result-actions">
-        <button type="button" class="btn btn-ghost btn-sm" data-action="go-outbox">받은 결과물 보기</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-action="go-inbox">보낸 요청 보기</button>
-      </div>
+      <p class="sb-legal">서버 없음 · 데이터는 내 저장소에만</p>
     </div>
-  </section>
+  </aside>
 
-  <!-- ============ 받은 결과물 ============ -->
-  <section class="panel" id="tab-outbox" role="tabpanel" hidden>
-    <div class="section-head">
-      <div>
-        <h2>받은 결과물 <span class="muted small">outbox/</span></h2>
-        <p class="muted small">피클이 이 폴더에 올려 둔 파일을 내려받거나 바로 열어 볼 수 있습니다.</p>
-      </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-outbox">↻ 새로고침</button>
-    </div>
-    <div class="card list-card">
-      <ul class="itemlist" id="outboxList"><li class="empty">불러오는 중…</li></ul>
-    </div>
-  </section>
+  <!-- ================= 본문 ================= -->
+  <div class="shell">
 
-  <!-- ============ 보낸 요청 ============ -->
-  <section class="panel" id="tab-inbox" role="tabpanel" hidden>
-    <div class="section-head">
-      <div>
-        <h2>보낸 요청 <span class="muted small">inbox/</span></h2>
-        <p class="muted small">PC에서 보낸 프롬프트 기록입니다. 내용을 다시 보거나 지울 수 있습니다.</p>
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="mobile-brand">
+          <svg class="brand-logo sm" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <defs><linearGradient id="pgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#15b478"/><stop offset="1" stop-color="#0a7749"/></linearGradient></defs>
+            <rect width="40" height="40" rx="11" fill="url(#pgB)"/>
+            <g transform="rotate(-32 20 20)"><rect x="15.6" y="8.6" width="8.8" height="22.8" rx="4.4" fill="#eafaf2"/><circle cx="18.4" cy="15" r="1.15" fill="#14a86d"/><circle cx="21.7" cy="19" r="1.15" fill="#14a86d"/><circle cx="18" cy="23.2" r="1.15" fill="#14a86d"/></g>
+          </svg>
+          <strong>Pickle</strong>
+        </span>
+        <div class="page-head">
+          <h1 id="pageTitle">보내기</h1>
+          <p id="pageSub">긴 프롬프트를 쓰고 파일을 붙여 피클에게 보냅니다.</p>
+        </div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-inbox">↻ 새로고침</button>
-    </div>
-    <div class="card list-card">
-      <ul class="itemlist" id="inboxList"><li class="empty">불러오는 중…</li></ul>
-    </div>
-
-    <div class="section-head section-head-sub">
-      <div>
-        <h2>첨부 파일 <span class="muted small">inbox/files/</span></h2>
+      <div class="topbar-right">
+        <span id="statusPill" class="pill pill-idle" title="GitHub 연결 상태">미연결</span>
+        <button type="button" class="btn btn-ghost btn-sm hide-sm" id="btnGoSettings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.7 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.7a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.3 9v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>
+          설정
+        </button>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-inbox-files">↻ 새로고침</button>
-    </div>
-    <div class="card list-card">
-      <ul class="itemlist" id="inboxFilesList"><li class="empty">불러오는 중…</li></ul>
-    </div>
-  </section>
+    </header>
 
-  <!-- ============ 설정 ============ -->
-  <section class="panel" id="tab-settings" role="tabpanel" hidden>
-    <div class="section-head">
-      <div>
-        <h2>GitHub 연결</h2>
-        <p class="muted small">프롬프트와 파일은 모두 내 <strong>비공개 저장소</strong>에만 저장됩니다. 이 사이트에는 서버가 없습니다.</p>
-      </div>
-    </div>
+    <main class="content" id="content">
+      <div class="content-inner">
 
-    <div class="card">
-      <ol class="steps">
-        <li>
-          <div class="step-body">
-            <strong>토큰을 발급합니다.</strong>
-            <p class="small muted">아래 두 가지 중 편한 것을 쓰면 됩니다. <strong>Fine-grained</strong> 방식이 더 안전합니다.</p>
-            <div class="step-links">
-              <a class="btn btn-secondary btn-sm" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Fine-grained 토큰 발급 (권장)</a>
-              <a class="btn btn-ghost btn-sm" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Pickle-PC" target="_blank" rel="noopener">Classic 토큰 발급 (repo)</a>
+        <!-- ============ 보내기 ============ -->
+        <section class="panel" id="tab-compose" role="tabpanel" aria-labelledby="tabbtn-compose">
+
+          <div class="alert alert-danger" id="privacyBanner" hidden>
+            <span class="alert-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 2.8 20h18.4z"/><path d="M12 10v4.2"/><path d="M12 17.4h.01"/></svg>
+            </span>
+            <div class="alert-text">
+              <strong>연결된 저장소가 공개(Public) 상태입니다.</strong>
+              <span>지금 보내는 프롬프트와 파일은 누구나 볼 수 있습니다. GitHub 저장소 설정에서 비공개로 바꿔 주세요.</span>
             </div>
-            <ul class="small muted bullets">
-              <li><strong>Fine-grained:</strong> Repository access → <em>Only select repositories</em> → <code>pickle-workspace</code> 선택, Permissions → <em>Contents: Read and write</em> 만 켜면 됩니다.</li>
-              <li><strong>Classic:</strong> scope에서 <code>repo</code> 하나만 체크하면 됩니다.</li>
-              <li>만료 기간은 원하는 만큼 짧게 잡아도 되고, 만료되면 새 토큰으로 바꿔 넣으면 됩니다.</li>
-            </ul>
+            <a class="btn btn-danger-ghost btn-sm" id="privacyLink" href="https://github.com/sogic8-web/pickle-workspace/settings" target="_blank" rel="noopener">저장소 설정 열기</a>
           </div>
-        </li>
-        <li>
-          <div class="step-body">
-            <strong>발급한 토큰을 아래에 붙여넣고 저장합니다.</strong>
-            <p class="small muted">토큰은 <code>localStorage</code>(이 브라우저)에만 보관되며, 공개 저장소나 외부로는 절대 나가지 않습니다. 공용 PC에서는 쓰지 마세요.</p>
-            <div class="field-row">
-              <input id="tokenInput" class="input mono" type="password" placeholder="github_pat_… 또는 ghp_…"
-                     autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="GitHub Personal Access Token">
-              <button type="button" class="btn btn-ghost btn-sm" id="btnToggleToken">보기</button>
+
+          <div class="alert alert-info" id="setupBanner" hidden>
+            <span class="alert-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.6 3.1 7.9 7.5 9.3 4.4-1.4 7.5-4.7 7.5-9.3V6z"/><path d="M12 9.2v4"/><path d="M12 16.2h.01"/></svg>
+            </span>
+            <div class="alert-text">
+              <strong>먼저 GitHub 토큰을 연결해 주세요.</strong>
+              <span>토큰은 이 브라우저(localStorage)에만 저장되고, 어디로도 전송되지 않습니다.</span>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" data-action="open-settings">토큰 연결하기</button>
+          </div>
+
+          <div class="compose-grid">
+            <!-- 왼쪽: 작성 -->
+            <div class="card card-compose">
+              <div class="compose-top">
+                <span class="eyebrow">새 요청</span>
+                <span class="tag-soft">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h3.2l1.8 2h6A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/></svg>
+                  저장 위치 inbox/
+                </span>
+              </div>
+
+              <div class="tpl-row">
+                <span class="tpl-label">빠른 템플릿</span>
+                <button type="button" class="tpl" data-tpl="summary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.6 13.9 9l5.5 1.9-5.5 2L12 18.4 10.1 12.9 4.6 10.9 10.1 9z"/></svg>
+                  문서 요약 → PDF
+                </button>
+                <button type="button" class="tpl" data-tpl="draft">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19h14"/><path d="M14.5 4.8 19 9.3 11.4 16.9 6.6 17.3l.4-4.8z"/></svg>
+                  메일·보고서 초안
+                </button>
+                <button type="button" class="tpl" data-tpl="analyze">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"/><rect x="6" y="11" width="3.2" height="6" rx="1"/><rect x="11.4" y="7.5" width="3.2" height="9.5" rx="1"/><rect x="16.8" y="13.5" width="3.2" height="3.5" rx="1"/></svg>
+                  자료 분석
+                </button>
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="promptTitle">제목 <span class="field-hint-inline">선택 — 비우면 본문 첫 줄로 만듭니다</span></label>
+                <input id="promptTitle" class="input" type="text" maxlength="80" placeholder="예: 세계은행 질의서 답변 초안 요청" autocomplete="off">
+              </div>
+
+              <div class="field">
+                <div class="field-label-row">
+                  <label class="field-label" for="promptBody">프롬프트</label>
+                  <span class="kbd-hint"><kbd>Ctrl</kbd><span>+</span><kbd>Enter</kbd> 전송</span>
+                </div>
+                <textarea id="promptBody" class="textarea" placeholder="하고 싶은 일을 길게 적어 주세요.&#10;예) 첨부한 PDF 두 개를 비교해서 표로 정리하고, 마지막에 핵심 차이 3가지를 뽑아 줘."></textarea>
+                <div class="under-input">
+                  <span class="hint">파일은 끌어다 놓거나 붙여넣기(<kbd>Ctrl</kbd>+<kbd>V</kbd>)로도 첨부됩니다.</span>
+                  <span class="counter" id="charCount">0자</span>
+                </div>
+              </div>
+
+              <div class="send-row">
+                <div class="send-status" id="sendStatus" role="status" aria-live="polite"></div>
+                <div class="send-buttons">
+                  <button type="button" class="btn btn-ghost" id="btnClear">비우기</button>
+                  <button type="button" class="btn btn-primary" id="btnSend">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.5 3.5 10.8 14.2"/><path d="M21.5 3.5 15 21l-4.2-6.8L4 10z"/></svg>
+                    <span class="btn-label">보내기</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 첨부 + 안내 -->
+            <div class="side-col">
+              <div class="card card-attach">
+                <div class="card-head">
+                  <h2 class="card-title">첨부 파일</h2>
+                  <span class="count-tag" id="fileCountTag" hidden>0</span>
+                </div>
+
+                <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="파일 첨부 — 끌어다 놓거나 클릭해 선택">
+                  <span class="dz-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.5V4.2"/><path d="m8 8.1 4-3.9 4 3.9"/><path d="M4.5 14v4.3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V14"/></svg>
+                  </span>
+                  <span class="dz-text">
+                    <strong>끌어다 놓기</strong>
+                    <span>또는 클릭해 선택</span>
+                  </span>
+                  <input type="file" id="fileInput" multiple hidden>
+                </div>
+
+                <ul class="filelist" id="fileList" hidden></ul>
+
+                <p class="hint tiny">PDF · HWP · DOCX · XLSX · 이미지 등 여러 개 동시 선택 가능.<br>GitHub 특성상 <strong>개별 20MB 이하</strong>를 권장합니다.</p>
+              </div>
+
+              <div class="card card-flow">
+                <div class="card-head"><h2 class="card-title">보내면 이렇게 됩니다</h2></div>
+                <ol class="flow">
+                  <li>
+                    <span class="flow-num">1</span>
+                    <div><strong>요청서가 저장됩니다</strong><span class="mono small muted">inbox/{날짜}_{제목}.md</span></div>
+                  </li>
+                  <li>
+                    <span class="flow-num">2</span>
+                    <div><strong>한 줄을 복사해 앱에 붙여넣기</strong><span class="small muted">피클이 바로 확인합니다</span></div>
+                  </li>
+                  <li>
+                    <span class="flow-num">3</span>
+                    <div><strong>결과물은 받은 결과물 탭으로</strong><span class="mono small muted">outbox/</span></div>
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <div class="card result-card" id="resultCard" hidden>
+            <div class="result-head">
+              <span class="result-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 6.8"/></svg>
+              </span>
+              <div class="result-text">
+                <strong>보냈습니다</strong>
+                <span class="mono small" id="resultPath"></span>
+              </div>
+            </div>
+            <p class="result-desc">피클 앱에서 아래 한 줄을 붙여넣으면 바로 확인합니다.</p>
+            <div class="copy-row">
+              <code id="copyText" class="copy-text"></code>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCopy">한 줄 복사</button>
+            </div>
+            <div class="result-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="go-outbox">받은 결과물 보기</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="go-inbox">보낸 요청 보기</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 받은 결과물 ============ -->
+        <section class="panel" id="tab-outbox" role="tabpanel" aria-labelledby="tabbtn-outbox" hidden>
+          <div class="section-head">
+            <div>
+              <h2>받은 결과물 <span class="path-tag mono">outbox/</span></h2>
+              <p class="sub">피클이 올려 둔 파일을 미리보기하거나 내려받을 수 있습니다.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-outbox">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4.2V9h-4.8"/></svg>
+              새로고침
+            </button>
+          </div>
+          <div class="card list-card">
+            <ul class="itemlist" id="outboxList"><li class="list-state loading">불러오는 중…</li></ul>
+          </div>
+        </section>
+
+        <!-- ============ 보낸 요청 ============ -->
+        <section class="panel" id="tab-inbox" role="tabpanel" aria-labelledby="tabbtn-inbox" hidden>
+          <div class="section-head">
+            <div>
+              <h2>보낸 요청 <span class="path-tag mono">inbox/</span></h2>
+              <p class="sub">PC에서 보낸 프롬프트 기록입니다. 내용을 다시 보거나 지울 수 있습니다.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-inbox">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4.2V9h-4.8"/></svg>
+              새로고침
+            </button>
+          </div>
+          <div class="card list-card">
+            <ul class="itemlist" id="inboxList"><li class="list-state loading">불러오는 중…</li></ul>
+          </div>
+
+          <div class="section-head sub-head">
+            <div>
+              <h2>첨부 파일 <span class="path-tag mono">inbox/files/</span></h2>
+              <p class="sub">요청에 첨부해 올린 원본 파일입니다.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="refresh-inbox-files">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4.2V9h-4.8"/></svg>
+              새로고침
+            </button>
+          </div>
+          <div class="card list-card">
+            <ul class="itemlist" id="inboxFilesList"><li class="list-state loading">불러오는 중…</li></ul>
+          </div>
+        </section>
+
+        <!-- ============ 설정 ============ -->
+        <section class="panel" id="tab-settings" role="tabpanel" aria-labelledby="tabbtn-settings" hidden>
+
+          <div class="card card-conn">
+            <div class="conn-head">
+              <div class="conn-main">
+                <span class="conn-dot" id="connDot"></span>
+                <div class="conn-text">
+                  <strong id="connTitle">연결되지 않았습니다</strong>
+                  <span class="mono small muted" id="connRepo">sogic8-web/pickle-workspace</span>
+                </div>
+              </div>
+              <div class="badges">
+                <span class="badge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+                    localStorage에만 저장
+                </span>
+                <span class="badge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v6c0 4.6 3.1 7.9 7.5 9.3 4.4-1.4 7.5-4.7 7.5-9.3V6z"/><path d="m9 12 2.2 2.2L15.4 10"/></svg>
+                    서버 없음
+                </span>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="field-label-row">
+                <label class="field-label" for="tokenInput">Personal Access Token</label>
+                <button type="button" class="link-btn" id="btnToggleToken">보기</button>
+              </div>
+              <div class="field-row">
+                <input id="tokenInput" class="input mono" type="password" placeholder="github_pat_… 또는 ghp_…"
+                       autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="GitHub Personal Access Token">
+                <button type="button" class="btn btn-primary" id="btnSaveToken">저장</button>
+                <button type="button" class="btn btn-secondary" id="btnTestConn">연결 테스트</button>
+              </div>
+              <div class="conn-result" id="connResult" role="status" aria-live="polite"></div>
+              <div class="token-meta">
+                <span id="tokenState" class="small muted">저장된 토큰 없음</span>
+                <button type="button" class="link-btn danger" id="btnForgetToken">토큰 삭제</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-head sub-head">
+            <div>
+              <h2>연결 방법</h2>
+              <p class="sub">처음 한 번만 하면 됩니다. 3단계면 끝납니다.</p>
+            </div>
+          </div>
+
+          <div class="step-grid">
+            <article class="step-card">
+              <div class="step-top"><span class="step-num">1</span><h3>토큰 발급</h3></div>
+              <p class="small muted"><strong>Fine-grained</strong> 방식이 더 안전합니다. 저장소는 <code>pickle-workspace</code> 하나만 고르세요.</p>
+              <div class="step-actions">
+                <a class="btn btn-secondary btn-sm" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Fine-grained (권장)</a>
+                <a class="btn btn-ghost btn-sm" href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Pickle-PC" target="_blank" rel="noopener">Classic</a>
+              </div>
+              <ul class="bullets small muted">
+                <li>Repository access → <em>Only select repositories</em> → <code>pickle-workspace</code></li>
+                <li>Permissions → <em>Contents: Read and write</em> 만 켜기</li>
+              </ul>
+            </article>
+
+            <article class="step-card">
+              <div class="step-top"><span class="step-num">2</span><h3>토큰 저장</h3></div>
+              <p class="small muted">발급한 토큰을 위 입력란에 붙여넣고 <strong>저장</strong>을 누르면 이 브라우저에만 보관됩니다.</p>
+              <ul class="bullets small muted">
+                <li>공개 저장소나 외부로 전송되지 않습니다.</li>
+                <li>공용 PC에서는 사용 후 <strong>토큰 삭제</strong>를 눌러 주세요.</li>
+              </ul>
+            </article>
+
+            <article class="step-card">
+              <div class="step-top"><span class="step-num">3</span><h3>연결 확인</h3></div>
+              <p class="small muted"><strong>연결 테스트</strong>로 저장소 접근과 쓰기 권한을 함께 확인합니다. 처음 연결하면 <code>inbox/</code> · <code>outbox/</code> 폴더가 자동으로 만들어집니다.</p>
+              <ul class="bullets small muted">
+                <li>저장소가 공개 상태면 화면에 경고가 표시됩니다.</li>
+                <li>토큰이 만료되면 새 토큰으로 바꿔 넣으면 됩니다.</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="section-head sub-head">
+            <div>
+              <h2>저장소</h2>
+              <p class="sub">화면 코드(공개)와 데이터(비공개)가 분리되어 있습니다.</p>
+            </div>
+          </div>
+
+          <div class="card card-repo">
+            <div class="grid2">
+              <div class="field">
+                <label class="field-label" for="cfgOwner">계정(또는 조직)</label>
+                <input id="cfgOwner" class="input mono" type="text" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="field">
+                <label class="field-label" for="cfgRepo">데이터 저장소 (비공개)</label>
+                <input id="cfgRepo" class="input mono" type="text" autocomplete="off" spellcheck="false">
+              </div>
             </div>
             <div class="row-buttons">
-              <button type="button" class="btn btn-primary btn-sm" id="btnSaveToken">저장</button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btnTestConn">연결 테스트</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btnForgetToken">토큰 삭제</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnSaveCfg">저장</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnResetCfg">기본값으로</button>
             </div>
-            <div class="conn-result" id="connResult" role="status" aria-live="polite"></div>
+            <p class="hint tiny">기본값은 <code>sogic8-web / pickle-workspace</code> 입니다. 다른 저장소를 쓰려면 위에서 바꾸세요.</p>
+            <p class="hint tiny">비공개 저장소 주소: <a id="repoLink" href="https://github.com/sogic8-web/pickle-workspace" target="_blank" rel="noopener">https://github.com/sogic8-web/pickle-workspace</a></p>
           </div>
-        </li>
-      </ol>
-    </div>
+        </section>
 
-    <div class="section-head section-head-sub">
-      <div>
-        <h2>저장소</h2>
-        <p class="muted small">화면 코드(공개)와 데이터(비공개)가 분리되어 있습니다.</p>
-      </div>
-    </div>
-    <div class="card">
-      <div class="grid2">
-        <div>
-          <label class="field-label" for="cfgOwner">계정(또는 조직)</label>
-          <input id="cfgOwner" class="input mono" type="text" autocomplete="off" spellcheck="false">
-        </div>
-        <div>
-          <label class="field-label" for="cfgRepo">데이터 저장소 (비공개)</label>
-          <input id="cfgRepo" class="input mono" type="text" autocomplete="off" spellcheck="false">
-        </div>
-      </div>
-      <div class="row-buttons">
-        <button type="button" class="btn btn-secondary btn-sm" id="btnSaveCfg">저장</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="btnResetCfg">기본값으로</button>
-      </div>
-      <p class="hint tiny">기본값은 <code>sogic8-web / pickle-workspace</code> 입니다. 다른 저장소를 쓰려면 위에서 바꾸세요.</p>
-      <p class="hint tiny">비공개 저장소 주소: <a id="repoLink" href="https://github.com/sogic8-web/pickle-workspace" target="_blank" rel="noopener">https://github.com/sogic8-web/pickle-workspace</a></p>
-    </div>
-  </section>
+        <footer class="footer">
+          <span>Pickle PC · 정적 페이지(GitHub Pages) · 데이터는 <a id="footerRepoLink" href="https://github.com/sogic8-web/pickle-workspace" target="_blank" rel="noopener">비공개 저장소</a>에만</span>
+          <span id="footerConn" class="muted small"></span>
+        </footer>
 
-</main>
-
-<footer class="footer">
-  <div class="wrap">
-    <span>Pickle PC · 정적 페이지(GitHub Pages) · 데이터는 <a id="footerRepoLink" href="https://github.com/sogic8-web/pickle-workspace" target="_blank" rel="noopener">비공개 저장소</a>에만</span>
-    <span id="footerConn" class="muted small"></span>
+      </div>
+    </main>
   </div>
-</footer>
+</div>
 
 <!-- 미리보기 모달 -->
 <div class="modal" id="previewModal" hidden>
   <div class="modal-backdrop" data-action="close-preview"></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
     <div class="modal-head">
-      <div class="modal-title" id="previewTitle">미리보기</div>
+      <div class="modal-title-wrap">
+        <span class="ftype t-file" id="previewBadge">FILE</span>
+        <span class="modal-title" id="previewTitle">미리보기</span>
+      </div>
       <div class="modal-head-actions">
-        <button type="button" class="btn btn-secondary btn-sm" id="previewDownload">다운로드</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-action="close-preview">닫기</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="previewDownload">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m8 11.5 4 4 4-4"/><path d="M4.5 17v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/></svg>
+          다운로드
+        </button>
+        <button type="button" class="icon-btn" data-action="close-preview" aria-label="닫기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
       </div>
     </div>
     <div class="modal-body" id="previewBody"></div>
