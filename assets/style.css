@@ -90,7 +90,8 @@ code {
   padding: 1px 5px;
   border-radius: 5px;
   color: var(--ink-2);
-  word-break: break-all;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 .mono, .copy-text, .md-pre code { word-break: break-all; }
 
