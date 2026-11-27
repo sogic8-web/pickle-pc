@@ -918,8 +918,9 @@ svg { display: block; }
   letter-spacing: -.012em;
 }
 .item-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted-2); min-width: 0; }
+.item-meta > span { white-space: nowrap; }
 .item-meta .dot { width: 2px; height: 2px; border-radius: 50%; background: var(--line-3); flex: 0 0 auto; }
-.item-meta .path { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-meta .path { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 .item-actions { display: flex; gap: 5px; flex: 0 0 auto; }
 .item-actions .btn {
@@ -1297,6 +1298,7 @@ svg { display: block; }
   .section-head { flex-direction: column; align-items: stretch; gap: 8px; }
   .section-head .btn { align-self: flex-start; }
   .item { flex-wrap: wrap; gap: 8px 10px; }
+  .item-meta .path { display: none; }
   .item-actions { width: 100%; justify-content: flex-end; }
   .item-actions .btn { flex: 0 0 auto; opacity: 1; }
   .alert { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
