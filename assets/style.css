@@ -1299,6 +1299,7 @@ svg { display: block; }
   .section-head .btn { align-self: flex-start; }
   .item { flex-wrap: wrap; gap: 8px 10px; }
   .item-meta .path { display: none; }
+  .item-meta .dot:has(+ .path) { display: none; }
   .item-actions { width: 100%; justify-content: flex-end; }
   .item-actions .btn { flex: 0 0 auto; opacity: 1; }
   .alert { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
