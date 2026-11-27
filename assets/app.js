@@ -1279,6 +1279,7 @@
     out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     out = out.replace(/(^|[\s(])\*([^*]+)\*/g, '$1<em>$2</em>');
+    out = out.replace(/(^|[\s(])_([^_\n]+)_(?=[\s.,!?:)]|$)/g, '$1<em>$2</em>');
     out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     return out;
   }
